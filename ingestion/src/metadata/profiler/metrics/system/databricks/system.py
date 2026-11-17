@@ -15,11 +15,13 @@ from metadata.profiler.processor.runner import QueryRunner
 from metadata.utils.profiler_utils import QueryResult
 from metadata.utils.time_utils import datetime_to_timestamp
 
+# A MERGE commit reports its own counters (numTargetRows*) next to numOutputRows, which also counts
+# the rows it updated and copied: read the MERGE counter first, and the plain one for other operations.
 SYSTEM_QUERY = textwrap.dedent(
     """
     SELECT
         timestamp AS starttime,
-        COALESCE(CAST({column1} AS BIGINT), 0) + COALESCE(CAST({column2} AS BIGINT), 0) AS rows,
+        COALESCE(CAST({merge_metric} AS BIGINT), CAST({metric} AS BIGINT), 0) AS rows,
         '{database}' AS database,
         '{schema}' AS schema,
         '{table}' AS table
@@ -63,8 +65,8 @@ class DatabricksSystemMetricsComputer(SystemMetricsComputer, CacheProvider):
             self._get_query_results,
             self.session,
             SYSTEM_QUERY.format(
-                column1="operationMetrics.numOutputRows",
-                column2="operationMetrics.numTargetRowsInserted",
+                merge_metric="operationMetrics.numTargetRowsInserted",
+                metric="operationMetrics.numOutputRows",
                 database=self.database,
                 schema=self.schema,
                 table=self.table,
@@ -86,8 +88,8 @@ class DatabricksSystemMetricsComputer(SystemMetricsComputer, CacheProvider):
             self._get_query_results,
             self.session,
             SYSTEM_QUERY.format(
-                column1="operationMetrics.numDeletedRows",
-                column2="operationMetrics.numTargetRowsDeleted",
+                merge_metric="operationMetrics.numTargetRowsDeleted",
+                metric="operationMetrics.numDeletedRows",
                 database=self.database,
                 schema=self.schema,
                 table=self.table,
@@ -109,8 +111,8 @@ class DatabricksSystemMetricsComputer(SystemMetricsComputer, CacheProvider):
             self._get_query_results,
             self.session,
             SYSTEM_QUERY.format(
-                column1="operationMetrics.numUpdatedRows",
-                column2="operationMetrics.numTargetRowsUpdated",
+                merge_metric="operationMetrics.numTargetRowsUpdated",
+                metric="operationMetrics.numUpdatedRows",
                 database=self.database,
                 schema=self.schema,
                 table=self.table,
